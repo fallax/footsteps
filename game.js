@@ -175,8 +175,15 @@ function setupWorld()
             {
                 if (Math.random() < 0.02)
                 {
-                    enemies.push({x: (j + 0.5) * settings.gridsize, y: (i + 0.5) * settings.gridsize, type: "grunt", swing: 0, swingStart: 0, reaction: settings.reactionTime, loading: -1, alert: false, searching: false, patience: settings.entities.grunt.searchTime, health: 100,  angle: Math.PI * 2 * Math.random(), target: null, bleeding: false, bleedtime: 30, bleedrate: 50});
+                    enemies.push({x: (j + 0.5) * settings.gridsize, y: (i + 0.5) * settings.gridsize, type: "grunt", swing: 0, swingStart: 0, reaction: settings.reactionTime, loading: -1, alert: false, searching: false, patience: settings.entities.grunt.searchTime, health: 100, angle: Math.PI * 2 * Math.random(), target: null, bleeding: false, bleedtime: 30, bleedrate: 50});
                     objects.push(enemies[enemies.length - 1]);
+                }
+                if (Math.random() < 0.02)
+                {
+                    // make an explosive barrel or three
+                    if (Math.random() < 0.4) { objects.push({x: (j + 0.75) * settings.gridsize, y: (i + 0.75) * settings.gridsize, timer: -1, type: "barrel", lit: false, vel: 0, angle: Math.PI * 2 * Math.random()})};
+                    if (Math.random() < 0.4) { objects.push({x: (j + 0.5) * settings.gridsize, y: (i + 0.5) * settings.gridsize, timer: -1, type: "barrel", lit: false, vel: 0, angle: Math.PI * 2 * Math.random()})};
+                    if (Math.random() < 0.4) { objects.push({x: (j + 0.75) * settings.gridsize, y: (i + 0.25) * settings.gridsize, timer: -1, type: "barrel", lit: false, vel: 0, angle: Math.PI * 2 * Math.random()})};
                 }
                 map[i][j] = 0;
                 if (players.length == 0)
@@ -665,6 +672,87 @@ function go()
                     }
                 }
                 break;
+                case "barrel":
+                    item.timer -= 1;
+                    if (item.timer == 0)
+                    {
+                        item.expired = true;
+                        objects.push(
+                            { 
+                                type: "explosion", 
+                                source: null,
+                                x: item.x, 
+                                y: item.y, 
+                                age: 0,
+                                volume: 250
+                            }
+                        );
+                        objects.push(
+                            { 
+                                type: "sound", 
+                                source: null,
+                                x: item.x, 
+                                y: item.y, 
+                                age: 0,
+                                volume: 1000
+                            }
+                        );
+                        for (var i = 0; i < 20; i++)
+                        {
+                            objects.push(
+                                { 
+                                    type: "rubble", 
+                                    x: item.x, 
+                                    y: item.y,
+                                    age: 0,
+                                    vel: 3 + Math.random()*8,
+                                    angle: Math.PI * 2 * Math.random(), 
+                                    size: 0.5 + Math.random()*2
+                                }
+                            );
+                        }
+                    }
+                    if (item.vel > 0)
+                    {
+                        var targetX = item.x + Math.sin(item.angle) * item.vel;
+                        var targetY = item.y + Math.cos(item.angle) * -item.vel;
+
+                        // Check for collisions with walls
+                        var collision = getCollisions([item.x, item.y, targetX, targetY]);
+                        if (collision)
+                        {
+                            item.vel = item.vel * 0.75;
+                            var wallNormal = 0;
+                            switch (collision.side)
+                            {
+                                case "b": wallNormal = 0; break;
+                                case "l": wallNormal = -(Math.PI / 2); break;
+                                case "r": wallNormal = (Math.PI / 2); break;
+                                case "t": wallNormal = Math.PI; break;
+                            }
+                            console.log(angleDifference(item.angle, wallNormal - Math.PI));
+                            item.angle = wallNormal - angleDifference(item.angle, wallNormal - Math.PI);
+                            
+
+                            objects.push(
+                                { 
+                                    type: "sound", 
+                                    source: players[0],
+                                    x: item.x, 
+                                    y: item.y, 
+                                    age: 0,
+                                    volume: 200
+                                }
+                            );
+                        }
+                        else
+                        {
+                            item.x = targetX;
+                            item.y = targetY;
+                            item.vel = Math.max(item.vel - .15, 0);
+                        }
+                    }
+                break;
             case "grenade":
                 item.timer -= 1;
                 if (item.timer == 0)
@@ -781,6 +869,16 @@ function go()
                         item.x = collision.x;
                         item.y = collision.y;
                         item.vel = 0;
+                        objects.push(
+                            { 
+                                type: "sound",
+                                source: players[0], 
+                                x: collision.x, 
+                                y: collision.y,
+                                age: 0,
+                                volume: 200
+                            }
+                        );
                     }
                     else
                     {
@@ -812,7 +910,7 @@ function go()
 
                             // Stick the arrow permanently in the enemy
                             enemy.bleeding = true;
-                            enemy.health -= 25;
+                            enemy.health -= 40;
                             item.parent = enemy;
                             item.x = item.parent.x - item.x;
                             item.y = item.parent.y - item.y;
@@ -951,13 +1049,17 @@ function go()
                         
                     }
 
-                    item.x += Math.sin(item.angle) * item.vel;
-                    item.y -= Math.cos(item.angle) * item.vel;
+                    var targetX = item.x + (Math.sin(item.angle) * item.vel);
+                    var targetY = item.y - (Math.cos(item.angle) * item.vel);
+                    // TODO: Check to see if we can actually get there
+                    // Need to work out a mechanism to get enemies
+                    // to get out of the way of each other
+                    item.x = targetX;
+                    item.y = targetY;
 
                 }
                 else if (!item.dead && item.searching)
                 {
-                    // TODO: do this as a sine oscillation
                     item.angle = item.swingStart + (Math.sin(item.swing) * (Math.PI));
                     item.swing += settings.searchSpeed;
                     item.vel = 0;
@@ -974,16 +1076,20 @@ function go()
                 if (item.age == 0)
                 {
                     // did it hurt anyone?
-                    enemies.forEach(function (enemy) {
+                    objects.forEach(function (enemy) {
                         if (distance(item.x, item.y, enemy.x, enemy.y) < item.volume)
                         {
-                            enemy.health -= 200 * (item.volume - distance(item.x, item.y, enemy.x, enemy.y) / item.volume);
-                        }
-                    });
-                    players.forEach(function (enemy) {
-                        if (distance(item.x, item.y, enemy.x, enemy.y) < item.volume)
-                        {
-                            enemy.health -= 50;
+                            if (enemy.type == "player" || enemy.type == "grunt")
+                            {
+                                enemy.health -= 200 * (item.volume - distance(item.x, item.y, enemy.x, enemy.y) / item.volume);
+                            }
+                            if (enemy.type == "barrel")
+                            {
+                                enemy.lit = true;
+                                enemy.angle = angleTo(enemy, item);
+                                enemy.vel = 10;
+                                enemy.timer = 100;
+                            }
                         }
                     });
                 }
@@ -1137,7 +1243,7 @@ function draw()
         switch (item.type)
         {
             case "text":
-                ctx.fillStyle="rgba(0,0,0," + (50 - item.age)/50 + ")";
+                ctx.fillStyle="rgba(255,255,255," + (50 - item.age)/50 + ")";
                 ctx.font="140px Arial";
                 ctx.textAlign = "center";
                 ctx.save();
@@ -1161,6 +1267,15 @@ function draw()
                 ctx.translate(item.x, item.y);
                 ctx.beginPath();
                 ctx.arc(0, 0, item.size, 0, Math.PI * 2, true);
+                ctx.fill();
+                ctx.restore();
+                break; 
+            case "barrel":
+                ctx.fillStyle = item.lit ? "#ffaa44" : "#aaaa44";
+                ctx.save();
+                ctx.translate(item.x, item.y);
+                ctx.beginPath();
+                ctx.arc(0, 0, 20, 0, Math.PI * 2, true);
                 ctx.fill();
                 ctx.restore();
                 break; 
