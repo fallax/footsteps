@@ -384,6 +384,19 @@ function go()
                                 enemy.bleeding = true;
                                 enemy.health -= (Math.min(drawTime, settings.maxDraw)/settings.maxDraw) * 100;
                                 enemy.alert = true;
+                                if (enemy.health > 0)
+                                {
+                                    objects.push(
+                                        { 
+                                            type: "sound",
+                                            source: enemy, 
+                                            x: enemy.x, 
+                                            y: enemy.y,
+                                            age: 0,
+                                            volume: 500
+                                        }
+                                    );
+                                }
                             
                                 for (var i = 0; i < 50; i++)
                                 {
@@ -564,8 +577,22 @@ function go()
             }
 
             enemy.target = {x: players[0].x, y: players[0].y };
-            enemy.searching = false;
-            enemy.alert = true;
+            if (!enemy.alert || enemy.searching)
+            {
+                enemy.searching = false;
+                enemy.alert = true;
+                objects.push({type: "text", x: enemy.x, y: enemy.y, age: 0, text: "!"});
+                objects.push(
+                    { 
+                        type: "sound",
+                        source: enemy, 
+                        x: enemy.x, 
+                        y: enemy.y,
+                        age: 0,
+                        volume: 500
+                    }
+                );
+            }
             
             // Enemy tries to kill us!
             if (enemy.loading <= 0)
@@ -587,8 +614,9 @@ function go()
         }
         else
         {
-            if (enemy.alert && !enemy.target)
+            if (enemy.alert && !enemy.target && !enemy.searching)
             {
+                objects.push({type: "text", x: enemy.x, y: enemy.y, age: 0, text: "?"});
                 enemy.searching = true;
             }
         }
@@ -679,8 +707,6 @@ function go()
                 }
                 if (item.vel > 0)
                 {
-                    
-
                     var targetX = item.x + Math.sin(item.angle) * item.vel;
                     var targetY = item.y + Math.cos(item.angle) * -item.vel;
 
@@ -913,10 +939,14 @@ function go()
                         {
                             // Looking the wrong way - start searching
                             console.log("Lost the player!");
-                            item.searching = true;
-                            item.swingStart = item.angle;
-                            item.swing = 0;
-                            item.target = null;
+                            if (!item.searching)
+                            {
+                                item.searching = true;
+                                item.swingStart = item.angle;
+                                item.swing = 0;
+                                item.target = null;
+                                objects.push({type: "text", x: item.x, y: item.y, age: 0, text: "?"});
+                            }
                         }
                         
                     }
@@ -971,7 +1001,7 @@ function go()
                     // did anyone hear it?
                     enemies.forEach(function (enemy) {
                         // ignore sounds the enemy made themselves
-                        if (enemies.indexOf(item.source) > -1) { return true; } 
+                        if (enemy == item.source) { return true; } 
                         if (distance(item.x, item.y, enemy.x, enemy.y) < item.volume)
                         {
                             if (!enemy.dead && (!enemy.alert || enemy.searching))
@@ -989,6 +1019,7 @@ function go()
                                         volume: 500
                                     }
                                 );
+                                objects.push({type: "text", x: enemy.x, y: enemy.y, age: 0, text: "!"});
                             }
                         }
                     });
@@ -1106,7 +1137,7 @@ function draw()
         switch (item.type)
         {
             case "text":
-                ctx.fillStyle="rgba(0,0,0," + (250 - item.age)/250 + ")";
+                ctx.fillStyle="rgba(0,0,0," + (50 - item.age)/50 + ")";
                 ctx.font="140px Arial";
                 ctx.textAlign = "center";
                 ctx.save();
@@ -1181,7 +1212,7 @@ function draw()
                 ctx.restore();
                 break; 
             case "player":
-                ctx.fillStyle="rgba(0,255,0,1)";
+                
                 ctx.save();
                 ctx.translate(item.x, item.y);
                 // health bar
@@ -1195,6 +1226,7 @@ function draw()
                 ctx.beginPath();
                 ctx.arc(0, 0, 35, 0, (settings.maxDraw - Math.min(settings.maxDraw, drawTime) / settings.maxDraw) * Math.PI * 2, true);
                 ctx.stroke();
+                ctx.fillStyle="rgba(255,255,255,1)";
                 drawTriangle();
                 ctx.restore();
                 break; 
@@ -1219,16 +1251,16 @@ function draw()
 
                 // view angle
                 if (!item.dead) {
-                    ctx.fillStyle="rgba(255,255,255,0.25)";
+                    ctx.fillStyle=item.alert ? "rgba(255,128,0,0.25)" : "rgba(128,192,192,0.2)";
+                    if (item.searching) {ctx.fillStyle = "rgba(255,255,0,.25)"};
                     ctx.beginPath();
                     ctx.moveTo(0, 0);
                     ctx.arc(0, 0, 250, -Math.PI/2 - 0.5, -Math.PI/2 + 0.5);
                     ctx.fill();
                 }
 
-                ctx.fillStyle=item.alert ? "rgba(255,255,0,1)" : "rgba(128,192,192,1)";
-                if (item.searching) {ctx.fillStyle = "rgba(255,128,0,1)"};
-                if (item.dead) { ctx.fillStyle = "rgba(128,128,0,1)"};
+                ctx.fillStyle="rgba(0,0,0,1)";
+                if (item.dead) { ctx.fillStyle = "rgba(128,128,128,1)"};
                 drawTriangle();
                 ctx.restore();
                 break; 
