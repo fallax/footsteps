@@ -568,7 +568,7 @@ function go()
             enemy.alert = true;
             
             // Enemy tries to kill us!
-            if (enemy.loading < 0)
+            if (enemy.loading <= 0)
             {
                 console.log("Firing");
                 objects.push(
@@ -900,7 +900,13 @@ function go()
                             {
                                 item.vel = 0;
                                 // melee attack time!
-                                players[0].health -= 10;
+                                if (item.loading <= 0)
+                                {
+                                    console.log("bang!");
+                                    players[0].health -= 50;
+                                    players[0].bleeding = true;
+                                    item.loading = settings.entities.grunt.reload;
+                                }
                             }
                         }
                         else
