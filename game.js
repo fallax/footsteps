@@ -3,14 +3,19 @@ var settings =
     gridsize: 100,
     mapWidth: 50,
     mapHeight: 50,
+    maxDraw: 40,
     soundAnimationLength: 75,
     explosionAnimationLength: 15,
     searchSpeed: 0.015,
     turnSpeed: 0.1,
     walkSpeed: 5,
+    walkVolume: 300,
+    crawlSpeed: 2,
+    crawlVolume: 45,
     backSpeed: -2.5,
     arrowSpread: 0.05,
     arrowVelSpread: 5,
+    arrowReload: 50,
     grenadeVelSpread: 2,
     grenadeSpread: 0.25,
     reactionTime: 20,
@@ -49,6 +54,8 @@ var viewport =
 
 var testLine = [0, 0, 300, 250];
 
+var weapon = "arrow";
+var drawTime = 0;
 
 
 function getCollisions(testLine)
@@ -142,23 +149,12 @@ function distance(x1, y1, x2, y2)
     return dist;
 }
 
-function setup()
+function setupWorld()
 {
-    console.log("fnorg");
-    
-    var c = document.getElementById("canvas");
-    c.width = dimension[0];
-    c.height = dimension[1];
+    objects = [];
+    players = [];
+    enemies = [];
 
-    var ctx = c.getContext("2d");
-    ctx.moveTo(0, 0);
-    ctx.lineTo(dimension[0], dimension[1]);
-    ctx.stroke();
-
-    window.canvasContext = ctx;
-
-    window.canvasContext.clearRect(0, 0, 2000, 2000);
-    
     // Make a map
     for (var i = 0; i < settings.mapWidth; i++)
     {
@@ -184,54 +180,53 @@ function setup()
                 map[i][j] = 0;
                 if (players.length == 0)
                 {
-                    players.push({type: "player", health: 100, id: 1, x: (j + 0.5) * settings.gridsize, y: (i + 0.5) * settings.gridsize, angle: 0});
+                    players.push({type: "player", health: 100, loading: -1, id: 1, x: (j + 0.5) * settings.gridsize, y: (i + 0.5) * settings.gridsize, angle: 0});
                     objects.push(players[players.length - 1]);
                 }
             }
         }
-    }   
+    }
+}
+
+function setup()
+{
+    console.log("fnorg");
+    
+    var c = document.getElementById("canvas");
+    c.width = dimension[0];
+    c.height = dimension[1];
+
+    var ctx = c.getContext("2d");
+    ctx.moveTo(0, 0);
+    ctx.lineTo(dimension[0], dimension[1]);
+    ctx.stroke();
+
+    window.canvasContext = ctx;
+
+    window.canvasContext.clearRect(0, 0, 2000, 2000);
+    
+    setupWorld();
 
     window.addEventListener('keypress', function (e) {
-        if (e.key == " " && !players[0].dead)
+        if (e.key == "d" && !players[0].dead)
         {
-            console.log("swip");
-            objects.push(
-                { 
-                    type: "arrow",
-                    source: players[0], 
-                    x: players[0].x, 
-                    y: players[0].y, 
-                    angle: players[0].angle + Math.random() * settings.arrowSpread, 
-                    vel: settings.entities.arrow.speed + Math.random() * settings.arrowVelSpread
-                }
-            );
-
-            objects.push(
-                { 
-                    type: "sound", 
-                    source: players[0],
-                    x: players[0].x, 
-                    y: players[0].y, 
-                    age: 0,
-                    volume: 400
-                }
-            );
+            console.log("grenadez!");
+            objects.push({type: "text", x: players[0].x, y: players[0].y, age: 0, text: "grenadez!"});
+            weapon = "grenade";
         }
-
-        if (e.key == "g" && !players[0].dead)
+        if (e.key == "a" && !players[0].dead)
         {
-            console.log("fire in the hole!");
-            objects.push(
-                { 
-                    type: "grenade",
-                    source: players[0], 
-                    x: players[0].x, 
-                    y: players[0].y,
-                    timer: settings.entities.grenade.timer,
-                    angle: players[0].angle + (0.5-Math.random()) * settings.grenadeSpread, 
-                    vel: settings.entities.grenade.speed + Math.random() * settings.grenadeVelSpread
-                }
-            );
+            console.log("arros!");
+            objects.push({type: "text", x: players[0].x, y: players[0].y, age: 0, text: "arros!"});
+            
+            weapon = "arrow";
+        }
+        if (e.key == "s" && !players[0].dead)
+        {
+            console.log("hitting things!");
+            objects.push({type: "text", x: players[0].x, y: players[0].y, age: 0, text: "hitty thing!"});
+            
+            weapon = "melee";
         }
     });
 
@@ -288,7 +283,8 @@ function canSeePlayer(enemy)
 function go()
 {
     frames++;
-    blankCanvas();    
+    blankCanvas();
+
 
     // Move the player
     if (keys && keys[37] && !players[0].dead) 
@@ -299,10 +295,97 @@ function go()
     {
         players[0].angle += settings.turnSpeed;
     }
+    if (keys && keys[32] && !players[0].dead) 
+    {
+        drawTime++;
+    }
+    else
+    {
+        if (players[0].loading > 0)
+        {
+            console.log("still reloading");
+        }
+        else
+        {
+            if (drawTime > 0)
+            {
+                console.log("swip " + drawTime);
+
+                switch (weapon)
+                {
+                    case "arrow":
+                        players[0].loading = settings.arrowReload;
+                        objects.push(
+                            { 
+                                type: "arrow",
+                                source: players[0], 
+                                x: players[0].x, 
+                                y: players[0].y, 
+                                angle: players[0].angle + Math.random() * settings.arrowSpread, 
+                                vel: (Math.min(drawTime, settings.maxDraw)/settings.maxDraw * settings.entities.arrow.speed) + Math.random() * settings.arrowVelSpread
+                            }
+                        );
+        
+                        objects.push(
+                            { 
+                                type: "sound", 
+                                source: players[0],
+                                x: players[0].x, 
+                                y: players[0].y, 
+                                age: 0,
+                                volume: 400
+                            }
+                        );
+                        break;
+                    case "grenade":
+                        objects.push(
+                            { 
+                                type: "grenade",
+                                source: players[0], 
+                                x: players[0].x, 
+                                y: players[0].y,
+                                timer: settings.entities.grenade.timer,
+                                angle: players[0].angle + (0.5-Math.random()) * settings.grenadeSpread, 
+                                vel: (Math.min(drawTime, settings.maxDraw)/settings.maxDraw) * settings.entities.grenade.speed + Math.random() * settings.grenadeVelSpread
+                            }
+                        );
+                        break;
+                    case "melee":
+                        enemies.forEach(function (enemy) {
+                            if (distance(enemy.x, enemy.y, players[0].x, players[0].y) < 80)
+                            {
+                                enemy.bleeding = true;
+                                enemy.health -= 100;
+                                enemy.alert = true;
+                            
+                                for (var i = 0; i < 50; i++)
+                                {
+                                    objects.push(
+                                        { 
+                                            type: "blood", 
+                                            x: enemy.x, 
+                                            y: enemy.y,
+                                            age: 0,
+                                            vel: 1.5 + Math.random()*4,
+                                            angle: Math.PI * 2 * Math.random(), 
+                                            size: 1 + Math.random()*4
+                                        }
+                                    );
+                                }
+                            }
+                        });
+                    break;
+                }
+                
+
+                drawTime = 0;
+            }
+        }
+    }
     if (keys && keys[38] && !players[0].dead) 
     {
-        var targetX = players[0].x + Math.sin(players[0].angle) * settings.walkSpeed;
-        var targetY = players[0].y - Math.cos(players[0].angle) * settings.walkSpeed;
+        var targetX = players[0].x + Math.sin(players[0].angle) * (keys[17] ? settings.crawlSpeed : settings.walkSpeed);
+        var targetY = players[0].y - Math.cos(players[0].angle) * (keys[17] ? settings.crawlSpeed : settings.walkSpeed);
         if (!map[Math.floor(targetY/settings.gridsize)][Math.floor(targetX/settings.gridsize)])
         {
             players[0].x = targetX;
@@ -318,7 +401,7 @@ function go()
                     x: players[0].x, 
                     y: players[0].y, 
                     age: 0,
-                    volume: 200
+                    volume: keys[17] ? settings.crawlVolume : settings.walkVolume
                 }
             );
 
@@ -403,13 +486,19 @@ function go()
                 enemy.loading = settings.entities.grunt.reload;
             }
         }
-        enemy.loading -= 1;
     });
 
     // Move everything else
     objects.forEach(function (item) {
+
+        if (item.loading) { item.loading -= 1; }
+
         switch (item.type)
         {
+            case "text":
+                item.age += 1;
+                if (item.age > 250) { item.expired = true; };
+                break;
             case "rubble":
                 item.age += 1;
                 if (item.age > 250) { item.expired = true; }
@@ -597,6 +686,8 @@ function go()
                             item.y = item.parent.y - item.y;
                             item.angle = item.angle - item.parent.angle;
                             item.vel = 0;
+
+                            if (!enemy.alert) { enemy.alert = true; }
                         }
                     });
 
@@ -690,6 +781,7 @@ function go()
                             {
                                 item.vel = 0;
                                 // melee attack time!
+                                players[0].health -= 10;
                             }
                         }
                         else
@@ -804,6 +896,16 @@ function go()
                         }
                     );
                 }
+                if (item.type == "player") { setTimeout(function () {
+                    console.log("Time to go again...");
+                    viewport.scale = 1;
+                    setupWorld();
+                }, 2500);}
+            }
+
+            if (item.type == "player" && item.dead)
+            {
+                viewport.scale *= 0.998;
             }
 
             if (item.bleeding && !item.dead)
@@ -832,8 +934,8 @@ function go()
     });
 
     // Recenter the viewport
-    viewport.x = players[0].x - dimension[0]/2;
-    viewport.y = players[0].y - dimension[1]/2;
+    viewport.x = players[0].x - (dimension[0]/(2*viewport.scale)) ;
+    viewport.y = players[0].y - (dimension[1]/(2*viewport.scale)) ;
 
     draw();
     window.requestAnimationFrame(go);
@@ -850,6 +952,7 @@ function draw()
     var ctx = window.canvasContext;
 
     // Scroll the viewport
+    ctx.scale(viewport.scale, viewport.scale);
     ctx.translate(-viewport.x, -viewport.y);
 
     // Draw the map
@@ -877,6 +980,16 @@ function draw()
     objects.forEach(function (item) {
         switch (item.type)
         {
+            case "text":
+                ctx.fillStyle="rgba(0,0,0," + (250 - item.age)*0.5/250 + ")";
+                ctx.font="50px Arial";
+                ctx.textAlign = "center";
+                ctx.save();
+                ctx.translate(item.x, item.y);
+                ctx.scale((250 - item.age)*0.5/250, (250 - item.age)*0.5/250);
+                ctx.fillText(item.text, 0, 0);
+                ctx.restore();
+                break;
             case "blob":
                 ctx.fillStyle="#0000FF";
                 ctx.save();
@@ -952,6 +1065,11 @@ function draw()
                 ctx.fillStyle="rgba(255,0,0,1)";
                 ctx.fillRect(-25, -50, 50 * Math.max(item.health,0)/100, 10);
                 ctx.rotate(item.angle);
+                ctx.lineWidth=5;
+                ctx.strokeStyle="rgba(0,0,255,0.4)";
+                ctx.beginPath();
+                ctx.arc(0, 0, 35, 0, (settings.maxDraw - Math.min(settings.maxDraw, drawTime) / settings.maxDraw) * Math.PI * 2, true);
+                ctx.stroke();
                 drawTriangle();
                 ctx.restore();
                 break; 
