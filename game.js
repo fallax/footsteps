@@ -243,7 +243,7 @@ function setup()
     window.addEventListener('mousemove', function (e) {
         if (!players[0].dead)
         {
-            players[0].angle = angleTo({x: event.clientX, y: event.clientY}, {x: dimension[0]/2, y: dimension[1]/2});
+            players[0].angle = angleTo({x: e.clientX, y: e.clientY}, {x: dimension[0]/2, y: dimension[1]/2});
         }
     });
 
