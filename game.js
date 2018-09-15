@@ -12,7 +12,7 @@ var settings =
     walkVolume: 300,
     crawlSpeed: 2,
     crawlVolume: 45,
-    backSpeed: -2.5,
+    backSpeed: 2.5,
     arrowSpread: 0.05,
     arrowVelSpread: 5,
     arrowReload: 50,
@@ -45,6 +45,7 @@ var map = [];
 
 var dimension = [window.innerWidth, window.innerHeight];
 var keys = [];
+var mouse = [];
 var viewport = 
 {
     x: 0,
@@ -186,6 +187,8 @@ function setupWorld()
             }
         }
     }
+
+    objects.push({type: "text", x: players[0].x, y: players[0].y, age: 0, text: "let's go!"});
 }
 
 function setup()
@@ -208,20 +211,20 @@ function setup()
     setupWorld();
 
     window.addEventListener('keypress', function (e) {
-        if (e.key == "d" && !players[0].dead)
+        if (e.key == "3" && !players[0].dead)
         {
             console.log("grenadez!");
             objects.push({type: "text", x: players[0].x, y: players[0].y, age: 0, text: "grenadez!"});
             weapon = "grenade";
         }
-        if (e.key == "a" && !players[0].dead)
+        if (e.key == "2" && !players[0].dead)
         {
             console.log("arros!");
             objects.push({type: "text", x: players[0].x, y: players[0].y, age: 0, text: "arros!"});
             
             weapon = "arrow";
         }
-        if (e.key == "s" && !players[0].dead)
+        if (e.key == "1" && !players[0].dead)
         {
             console.log("hitting things!");
             objects.push({type: "text", x: players[0].x, y: players[0].y, age: 0, text: "hitty thing!"});
@@ -230,12 +233,36 @@ function setup()
         }
     });
 
+    window.addEventListener('mousemove', function (e) {
+        if (!players[0].dead)
+        {
+            players[0].angle = angleTo({x: event.clientX, y: event.clientY}, {x: dimension[0]/2, y: dimension[1]/2});
+        }
+    });
+
+    window.addEventListener('mousedown', function (e) {
+        console.log(e);
+        mouse = (mouse || []);
+        mouse[e.button] = true;
+    });
+
+    window.addEventListener('mouseup', function (e) {
+        console.log(e);
+        mouse = (mouse || []);
+        mouse[e.button] = false;
+    });
+
+    window.onbeforeunload = function () {//Prevent Ctrl+W
+        return false;
+    };
+
     window.addEventListener('keydown', function (e) {
         keys = (keys || []);
         keys[e.keyCode] = true;
     });
     window.addEventListener('keyup', function (e) {
         keys[e.keyCode] = false; 
+        
     });
 
     go();
@@ -287,15 +314,15 @@ function go()
 
 
     // Move the player
-    if (keys && keys[37] && !players[0].dead) 
+/*     if (keys && keys[37] && !players[0].dead) 
     {
         players[0].angle += -settings.turnSpeed;
     }
     if (keys && keys[39] && !players[0].dead) 
     {
         players[0].angle += settings.turnSpeed;
-    }
-    if (keys && keys[32] && !players[0].dead) 
+    } */
+    if (((keys && keys[32]) || (mouse && mouse[0])) && !players[0].dead) 
     {
         drawTime++;
     }
@@ -355,7 +382,7 @@ function go()
                             if (distance(enemy.x, enemy.y, players[0].x, players[0].y) < 80)
                             {
                                 enemy.bleeding = true;
-                                enemy.health -= 100;
+                                enemy.health -= (Math.min(drawTime, settings.maxDraw)/settings.maxDraw) * 100;
                                 enemy.alert = true;
                             
                                 for (var i = 0; i < 50; i++)
@@ -372,6 +399,16 @@ function go()
                                         }
                                     );
                                 }
+                                objects.push(
+                                    { 
+                                        type: "sound",
+                                        source: players[0], 
+                                        x: enemy.x, 
+                                        y: enemy.y,
+                                        age: 0,
+                                        volume: 200
+                                    }
+                                );
                             }
                         });
                     break;
@@ -382,10 +419,10 @@ function go()
             }
         }
     }
-    if (keys && keys[38] && !players[0].dead) 
+    if (keys && keys[87] && !players[0].dead) 
     {
-        var targetX = players[0].x + Math.sin(players[0].angle) * (keys[17] ? settings.crawlSpeed : settings.walkSpeed);
-        var targetY = players[0].y - Math.cos(players[0].angle) * (keys[17] ? settings.crawlSpeed : settings.walkSpeed);
+        var targetX = players[0].x + Math.sin(players[0].angle) * (keys[16] ? settings.crawlSpeed : settings.walkSpeed);
+        var targetY = players[0].y - Math.cos(players[0].angle) * (keys[16] ? settings.crawlSpeed : settings.walkSpeed);
         if (!map[Math.floor(targetY/settings.gridsize)][Math.floor(targetX/settings.gridsize)])
         {
             players[0].x = targetX;
@@ -401,7 +438,7 @@ function go()
                     x: players[0].x, 
                     y: players[0].y, 
                     age: 0,
-                    volume: keys[17] ? settings.crawlVolume : settings.walkVolume
+                    volume: keys[16] ? settings.crawlVolume : settings.walkVolume
                 }
             );
 
@@ -413,10 +450,72 @@ function go()
             footsteptime -=1 ;
         }
     }
-    if (keys && keys[40] && !players[0].dead) 
+    if (keys && keys[83] && !players[0].dead) 
     {
-        var targetX = players[0].x + Math.sin(players[0].angle) * settings.backSpeed;
-        var targetY = players[0].y - Math.cos(players[0].angle) * settings.backSpeed;
+        var targetX = players[0].x + Math.sin(players[0].angle + Math.PI) * settings.backSpeed;
+        var targetY = players[0].y - Math.cos(players[0].angle + Math.PI) * settings.backSpeed;
+        if (!map[Math.floor(targetY/settings.gridsize)][Math.floor(targetX/settings.gridsize)])
+        {
+            players[0].x = targetX;
+            players[0].y = targetY;
+        }
+        
+        if (footsteptime < 0)
+        {
+            objects.push(
+                { 
+                    type: "sound", 
+                    source: players[0],
+                    x: players[0].x, 
+                    y: players[0].y, 
+                    age: 0,
+                    volume: 50
+                }
+            );
+
+            footstep = footstep ? 0 : 1;
+            footsteptime = 20;
+        }
+        else
+        {
+            footsteptime -=1 ;
+        }
+    }
+    if (keys && keys[65] && !players[0].dead) 
+    {
+        var targetX = players[0].x + Math.sin(players[0].angle - Math.PI/2) * settings.backSpeed;
+        var targetY = players[0].y - Math.cos(players[0].angle - Math.PI/2) * settings.backSpeed;
+        if (!map[Math.floor(targetY/settings.gridsize)][Math.floor(targetX/settings.gridsize)])
+        {
+            players[0].x = targetX;
+            players[0].y = targetY;
+        }
+        
+        if (footsteptime < 0)
+        {
+            objects.push(
+                { 
+                    type: "sound", 
+                    source: players[0],
+                    x: players[0].x, 
+                    y: players[0].y, 
+                    age: 0,
+                    volume: 50
+                }
+            );
+
+            footstep = footstep ? 0 : 1;
+            footsteptime = 20;
+        }
+        else
+        {
+            footsteptime -=1 ;
+        }
+    }
+    if (keys && keys[68] && !players[0].dead) 
+    {
+        var targetX = players[0].x + Math.sin(players[0].angle + Math.PI/2) * settings.backSpeed;
+        var targetY = players[0].y - Math.cos(players[0].angle + Math.PI/2) * settings.backSpeed;
         if (!map[Math.floor(targetY/settings.gridsize)][Math.floor(targetX/settings.gridsize)])
         {
             players[0].x = targetX;
@@ -484,6 +583,13 @@ function go()
                 );
 
                 enemy.loading = settings.entities.grunt.reload;
+            }
+        }
+        else
+        {
+            if (enemy.alert && !enemy.target)
+            {
+                enemy.searching = true;
             }
         }
     });
@@ -687,7 +793,20 @@ function go()
                             item.angle = item.angle - item.parent.angle;
                             item.vel = 0;
 
-                            if (!enemy.alert) { enemy.alert = true; }
+                            if (!enemy.alert) 
+                            { 
+                                enemy.alert = true;
+                                objects.push(
+                                    { 
+                                        type: "sound", 
+                                        source: enemy,
+                                        x: enemy.x,
+                                        y: enemy.y,
+                                        age: 0, 
+                                        volume: 500
+                                    }
+                                ); 
+                            }
                         }
                     });
 
@@ -981,8 +1100,8 @@ function draw()
         switch (item.type)
         {
             case "text":
-                ctx.fillStyle="rgba(0,0,0," + (250 - item.age)*0.5/250 + ")";
-                ctx.font="50px Arial";
+                ctx.fillStyle="rgba(0,0,0," + (250 - item.age)/250 + ")";
+                ctx.font="140px Arial";
                 ctx.textAlign = "center";
                 ctx.save();
                 ctx.translate(item.x, item.y);
