@@ -186,10 +186,13 @@ function setupWorld()
                     if (Math.random() < 0.4) { objects.push({x: (j + 0.75) * settings.gridsize, y: (i + 0.25) * settings.gridsize, timer: -1, type: "barrel", lit: false, vel: 0, angle: Math.PI * 2 * Math.random()})};
                 }
                 map[i][j] = 0;
-                if (players.length == 0)
+                if (players.length == 0 && (i > settings.mapWidth / 2) && (j > settings.mapHeight / 2))
                 {
                     players.push({type: "player", health: 100, loading: -1, id: 1, x: (j + 0.5) * settings.gridsize, y: (i + 0.5) * settings.gridsize, angle: 0});
                     objects.push(players[players.length - 1]);
+
+                    // Make the square to the left empty too to reduce chance of being trapped
+                    map[i][j-1] = 0;
                 }
             }
         }
@@ -536,11 +539,37 @@ function go()
     {
         var targetX = players[0].x + Math.sin(players[0].angle + Math.PI/2) * settings.backSpeed;
         var targetY = players[0].y - Math.cos(players[0].angle + Math.PI/2) * settings.backSpeed;
-        if (!map[Math.floor(targetY/settings.gridsize)][Math.floor(targetX/settings.gridsize)])
+        
+        // If we hit a wall, slide along it
+        if (map[Math.floor(targetY/settings.gridsize)][Math.floor(targetX/settings.gridsize)])
         {
-            players[0].x = targetX;
-            players[0].y = targetY;
+            targetX = players[0].x;
+            targetY = players[0].y;
+            /* // Work out where the collision happens
+            var collision = getCollisions([players[0].x, players[0].y, targetX, targetY]);
+
+            // Work out how much travel there is left
+
+            // Figure out the wall direction
+            var wallNormal;
+            switch (collision.side)
+            {
+                case "b": wallNormal = 0; break;
+                case "l": wallNormal = -(Math.PI / 2); break;
+                case "r": wallNormal = (Math.PI / 2); break;
+                case "t": wallNormal = Math.PI; break;
+            }
+            var wallAngle = wallNormal - (Math.PI / 2);
+
+            // Move that distance in the direction of the wall instead
+            var distanceMoved = settings.backSpeed * Math.cos(angleDifference(players[0].angle, wallAngle));
+            console.log(distanceMoved);
+            targetX = players[0].x + Math.sin(wallAngle) * distanceMoved;
+            targetY = players[0].y - Math.cos(wallAngle) * distanceMoved; */
+            
         }
+        players[0].x = targetX;
+        players[0].y = targetY;
         
         if (footsteptime < 0)
         {
@@ -1051,11 +1080,15 @@ function go()
 
                     var targetX = item.x + (Math.sin(item.angle) * item.vel);
                     var targetY = item.y - (Math.cos(item.angle) * item.vel);
-                    // TODO: Check to see if we can actually get there
-                    // Need to work out a mechanism to get enemies
+                    // Check to see if we can actually get there
+                    // TODO: Need to work out a mechanism to get enemies
                     // to get out of the way of each other
-                    item.x = targetX;
-                    item.y = targetY;
+                    if (!map[Math.floor(targetY/settings.gridsize)][Math.floor(targetX/settings.gridsize)])
+                    {
+                        item.x = targetX;
+                        item.y = targetY;
+                    }
+                    
 
                 }
                 else if (!item.dead && item.searching)
@@ -1366,7 +1399,7 @@ function draw()
 
                 // view angle
                 if (!item.dead) {
-                    ctx.fillStyle=item.alert ? "rgba(255,128,0,0.25)" : "rgba(128,192,192,0.2)";
+                    ctx.fillStyle=item.alert ? "rgba(255,128,0,0.25)" : "rgba(128,192,192,0.3)";
                     if (item.searching) {ctx.fillStyle = "rgba(255,255,0,.25)"};
                     ctx.beginPath();
                     ctx.moveTo(0, 0);
