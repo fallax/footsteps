@@ -317,21 +317,79 @@ function canSeePlayer(enemy)
     return false;
 }
 
+function movePlayer(angle, speed, volume)
+{
+    var targetX = players[0].x + Math.sin(angle) * speed;
+    var targetY = players[0].y - Math.cos(angle) * speed;
+
+    /* Stop the movement if it would collide with a wall */
+    if (map[Math.floor(targetY/settings.gridsize)][Math.floor(targetX/settings.gridsize)])
+    {
+        //targetX = players[0].x;
+        //targetY = players[0].y;
+
+        // Work out where the collision happens
+            var collision = getCollisions([players[0].x, players[0].y, targetX, targetY]);
+
+            // Work out how much travel there is left
+
+            // Figure out the wall direction
+            var wallNormal;
+            switch (collision.side)
+            {
+                case "b": wallNormal = 0; break;
+                case "l": wallNormal = -(Math.PI / 2); break;
+                case "r": wallNormal = (Math.PI / 2); break;
+                case "t": wallNormal = Math.PI; break;
+            }
+            var wallAngle = wallNormal - (Math.PI / 2);
+
+            // Move that distance in the direction of the wall instead
+            var distanceMoved = settings.backSpeed * Math.cos(angleDifference(angle, wallAngle));
+            console.log(distanceMoved);
+
+            // Assuming this wouldn't shoot us through another wall...
+            targetX = players[0].x + Math.sin(wallAngle) * distanceMoved;
+            targetY = players[0].y - Math.cos(wallAngle) * distanceMoved; 
+            if (map[Math.floor(targetY/settings.gridsize)][Math.floor(targetX/settings.gridsize)])
+            {
+                targetX = players[0].x;
+                targetY = players[0].y;
+            }
+    }
+
+    players[0].x = targetX;
+    players[0].y = targetY;
+    
+
+    if (footsteptime < 0)
+    {
+        objects.push(
+            { 
+                type: "sound", 
+                source: players[0],
+                x: players[0].x, 
+                y: players[0].y, 
+                age: 0,
+                volume: volume
+            }
+        );
+
+        footstep = footstep ? 0 : 1;
+        footsteptime = 20;
+    }
+    else
+    {
+        footsteptime -=1 ;
+    }
+}
+
 function go()
 {
     frames++;
     blankCanvas();
 
 
-    // Move the player
-/*     if (keys && keys[37] && !players[0].dead) 
-    {
-        players[0].angle += -settings.turnSpeed;
-    }
-    if (keys && keys[39] && !players[0].dead) 
-    {
-        players[0].angle += settings.turnSpeed;
-    } */
     if (((keys && keys[32]) || (mouse && mouse[0])) && !players[0].dead) 
     {
         drawTime++;
@@ -444,153 +502,35 @@ function go()
     }
     if (keys && keys[87] && !players[0].dead) 
     {
-        var targetX = players[0].x + Math.sin(players[0].angle) * (keys[16] ? settings.crawlSpeed : settings.walkSpeed);
-        var targetY = players[0].y - Math.cos(players[0].angle) * (keys[16] ? settings.crawlSpeed : settings.walkSpeed);
-        if (!map[Math.floor(targetY/settings.gridsize)][Math.floor(targetX/settings.gridsize)])
-        {
-            players[0].x = targetX;
-            players[0].y = targetY;
-        }
-
-        if (footsteptime < 0)
-        {
-            objects.push(
-                { 
-                    type: "sound", 
-                    source: players[0],
-                    x: players[0].x, 
-                    y: players[0].y, 
-                    age: 0,
-                    volume: keys[16] ? settings.crawlVolume : settings.walkVolume
-                }
-            );
-
-            footstep = footstep ? 0 : 1;
-            footsteptime = 20;
-        }
-        else
-        {
-            footsteptime -=1 ;
-        }
+        movePlayer(
+            players[0].angle,
+            keys[16] ? settings.crawlSpeed : settings.walkSpeed,
+            keys[16] ? settings.crawlVolume : settings.walkVolume
+        );        
     }
     if (keys && keys[83] && !players[0].dead) 
     {
-        var targetX = players[0].x + Math.sin(players[0].angle + Math.PI) * settings.backSpeed;
-        var targetY = players[0].y - Math.cos(players[0].angle + Math.PI) * settings.backSpeed;
-        if (!map[Math.floor(targetY/settings.gridsize)][Math.floor(targetX/settings.gridsize)])
-        {
-            players[0].x = targetX;
-            players[0].y = targetY;
-        }
-        
-        if (footsteptime < 0)
-        {
-            objects.push(
-                { 
-                    type: "sound", 
-                    source: players[0],
-                    x: players[0].x, 
-                    y: players[0].y, 
-                    age: 0,
-                    volume: 50
-                }
-            );
-
-            footstep = footstep ? 0 : 1;
-            footsteptime = 20;
-        }
-        else
-        {
-            footsteptime -=1 ;
-        }
+        movePlayer(
+            players[0].angle + Math.PI,
+            settings.backSpeed,
+            settings.crawlVolume
+        );   
     }
     if (keys && keys[65] && !players[0].dead) 
     {
-        var targetX = players[0].x + Math.sin(players[0].angle - Math.PI/2) * settings.backSpeed;
-        var targetY = players[0].y - Math.cos(players[0].angle - Math.PI/2) * settings.backSpeed;
-        if (!map[Math.floor(targetY/settings.gridsize)][Math.floor(targetX/settings.gridsize)])
-        {
-            players[0].x = targetX;
-            players[0].y = targetY;
-        }
-        
-        if (footsteptime < 0)
-        {
-            objects.push(
-                { 
-                    type: "sound", 
-                    source: players[0],
-                    x: players[0].x, 
-                    y: players[0].y, 
-                    age: 0,
-                    volume: 50
-                }
-            );
-
-            footstep = footstep ? 0 : 1;
-            footsteptime = 20;
-        }
-        else
-        {
-            footsteptime -=1 ;
-        }
+        movePlayer(
+            players[0].angle - Math.PI/2,
+            settings.backSpeed,
+            settings.crawlVolume
+        );
     }
     if (keys && keys[68] && !players[0].dead) 
     {
-        var targetX = players[0].x + Math.sin(players[0].angle + Math.PI/2) * settings.backSpeed;
-        var targetY = players[0].y - Math.cos(players[0].angle + Math.PI/2) * settings.backSpeed;
-        
-        // If we hit a wall, slide along it
-        if (map[Math.floor(targetY/settings.gridsize)][Math.floor(targetX/settings.gridsize)])
-        {
-            targetX = players[0].x;
-            targetY = players[0].y;
-            /* // Work out where the collision happens
-            var collision = getCollisions([players[0].x, players[0].y, targetX, targetY]);
-
-            // Work out how much travel there is left
-
-            // Figure out the wall direction
-            var wallNormal;
-            switch (collision.side)
-            {
-                case "b": wallNormal = 0; break;
-                case "l": wallNormal = -(Math.PI / 2); break;
-                case "r": wallNormal = (Math.PI / 2); break;
-                case "t": wallNormal = Math.PI; break;
-            }
-            var wallAngle = wallNormal - (Math.PI / 2);
-
-            // Move that distance in the direction of the wall instead
-            var distanceMoved = settings.backSpeed * Math.cos(angleDifference(players[0].angle, wallAngle));
-            console.log(distanceMoved);
-            targetX = players[0].x + Math.sin(wallAngle) * distanceMoved;
-            targetY = players[0].y - Math.cos(wallAngle) * distanceMoved; */
-            
-        }
-        players[0].x = targetX;
-        players[0].y = targetY;
-        
-        if (footsteptime < 0)
-        {
-            objects.push(
-                { 
-                    type: "sound", 
-                    source: players[0],
-                    x: players[0].x, 
-                    y: players[0].y, 
-                    age: 0,
-                    volume: 50
-                }
-            );
-
-            footstep = footstep ? 0 : 1;
-            footsteptime = 20;
-        }
-        else
-        {
-            footsteptime -=1 ;
-        }
+        movePlayer(
+            players[0].angle + Math.PI/2,
+            settings.backSpeed,
+            settings.crawlVolume
+        );
     }
 
     // Did anything see us - if so, make them target us
