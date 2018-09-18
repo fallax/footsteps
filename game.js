@@ -61,13 +61,37 @@ var drawTime = 0;
 
 function getCollisions(testLine)
 {
-    points = squaresHit(
-        testLine[0] / settings.gridsize, 
-        testLine[1] / settings.gridsize, 
-        testLine[2] / settings.gridsize, 
-        testLine[3] / settings.gridsize, 
-        20
-    );
+    if (
+        (Math.abs(testLine[0] - testLine[2]) < settings.gridsize/2)
+        &&
+        (Math.abs(testLine[1] - testLine[3]) < settings.gridsize/2)
+    )
+    {
+        var squareX = Math.floor((testLine[0]) / settings.gridsize);
+        var squareY = Math.floor((testLine[1]) / settings.gridsize); 
+
+        points = [
+            [Math.max(0, squareX - 1),Math.max(0, squareY-1)],
+            [Math.max(0, squareX - 1),squareY],
+            [Math.max(0, squareX - 1),Math.min(settings.mapHeight -1, squareY+1)],
+            [squareX,Math.max(0, squareY-1)],
+            [squareX,squareY],
+            [squareX,Math.min(settings.mapHeight -1, squareY+1)],
+            [Math.min(settings.mapWidth - 1, squareX + 1),Math.max(0, squareY-1)],
+            [Math.min(settings.mapWidth - 1, squareX + 1),squareY],
+            [Math.min(settings.mapWidth - 1, squareX + 1),Math.min(settings.mapHeight -1, squareY+1)],
+        ];
+    }
+    else
+    {
+        points = squaresHit(
+            testLine[0] / settings.gridsize, 
+            testLine[1] / settings.gridsize, 
+            testLine[2] / settings.gridsize, 
+            testLine[3] / settings.gridsize, 
+            20
+        );
+    }
     
     var collisions = [];
     points.forEach (function (point)
@@ -317,45 +341,46 @@ function canSeePlayer(enemy)
     return false;
 }
 
+function isWall(targetX, targetY)
+{
+    return map[Math.floor(targetY/settings.gridsize)][Math.floor(targetX/settings.gridsize)];
+}
+
 function movePlayer(angle, speed, volume)
 {
     var targetX = players[0].x + Math.sin(angle) * speed;
     var targetY = players[0].y - Math.cos(angle) * speed;
 
     /* Stop the movement if it would collide with a wall */
-    if (map[Math.floor(targetY/settings.gridsize)][Math.floor(targetX/settings.gridsize)])
+    if (isWall(targetX, targetY) || getCollisions([players[0].x, players[0].y, targetX, targetY]))
     {
-        //targetX = players[0].x;
-        //targetY = players[0].y;
-
         // Work out where the collision happens
-            var collision = getCollisions([players[0].x, players[0].y, targetX, targetY]);
+        var collision = getCollisions([players[0].x, players[0].y, targetX, targetY]);
 
-            // Work out how much travel there is left
+        // Work out how much travel there is left
 
-            // Figure out the wall direction
-            var wallNormal;
-            switch (collision.side)
-            {
-                case "b": wallNormal = 0; break;
-                case "l": wallNormal = -(Math.PI / 2); break;
-                case "r": wallNormal = (Math.PI / 2); break;
-                case "t": wallNormal = Math.PI; break;
-            }
-            var wallAngle = wallNormal - (Math.PI / 2);
+        // Figure out the wall direction
+        var wallNormal;
+        switch (collision.side)
+        {
+            case "b": wallNormal = 0; break;
+            case "l": wallNormal = -(Math.PI / 2); break;
+            case "r": wallNormal = (Math.PI / 2); break;
+            case "t": wallNormal = Math.PI; break;
+        }
+        var wallAngle = wallNormal - (Math.PI / 2);
 
-            // Move that distance in the direction of the wall instead
-            var distanceMoved = settings.backSpeed * Math.cos(angleDifference(angle, wallAngle));
-            console.log(distanceMoved);
+        // Move that distance in the direction of the wall instead
+        var distanceMoved = settings.backSpeed * Math.cos(angleDifference(angle, wallAngle));
 
-            // Assuming this wouldn't shoot us through another wall...
-            targetX = players[0].x + Math.sin(wallAngle) * distanceMoved;
-            targetY = players[0].y - Math.cos(wallAngle) * distanceMoved; 
-            if (map[Math.floor(targetY/settings.gridsize)][Math.floor(targetX/settings.gridsize)])
-            {
-                targetX = players[0].x;
-                targetY = players[0].y;
-            }
+        // Assuming this wouldn't shoot us through another wall...
+        targetX = players[0].x + Math.sin(wallAngle) * distanceMoved;
+        targetY = players[0].y - Math.cos(wallAngle) * distanceMoved; 
+        if (isWall(targetX, targetY))
+        {
+            targetX = players[0].x;
+            targetY = players[0].y;
+        }
     }
 
     players[0].x = targetX;
@@ -1023,13 +1048,11 @@ function go()
                     // Check to see if we can actually get there
                     // TODO: Need to work out a mechanism to get enemies
                     // to get out of the way of each other
-                    if (!map[Math.floor(targetY/settings.gridsize)][Math.floor(targetX/settings.gridsize)])
+                    if (!isWall(targetX, targetY))
                     {
                         item.x = targetX;
                         item.y = targetY;
                     }
-                    
-
                 }
                 else if (!item.dead && item.searching)
                 {
