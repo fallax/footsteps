@@ -1,8 +1,8 @@
 var settings =
 {
     gridsize: 100,
-    mapWidth: 50,
-    mapHeight: 50,
+    mapWidth: 30,
+    mapHeight: 30,
     maxDraw: 40,
     soundAnimationLength: 75,
     explosionAnimationLength: 15,
@@ -471,6 +471,15 @@ function go()
                         );
                         break;
                     case "melee":
+                        objects.forEach(function (enemy) {
+                            if (enemy.type == "barrel" && distance(enemy.x, enemy.y, players[0].x, players[0].y) < 80)
+                            {
+                                var angle = angleTo(enemy, players[0]);
+                                enemy.angle = angle;
+                                enemy.vel = 10;
+                            }
+                        });
+
                         enemies.forEach(function (enemy) {
                             if (distance(enemy.x, enemy.y, players[0].x, players[0].y) < 80)
                             {
@@ -529,8 +538,8 @@ function go()
     {
         movePlayer(
             players[0].angle,
-            keys[16] ? settings.crawlSpeed : settings.walkSpeed,
-            keys[16] ? settings.crawlVolume : settings.walkVolume
+            keys[16] ? settings.walkSpeed : settings.crawlSpeed,
+            keys[16] ? settings.walkVolume : settings.crawlVolume
         );        
     }
     if (keys && keys[83] && !players[0].dead) 
@@ -1210,6 +1219,7 @@ function draw()
     var ctx = window.canvasContext;
 
     // Scroll the viewport
+    ctx.save();
     ctx.scale(viewport.scale, viewport.scale);
     ctx.translate(-viewport.x, -viewport.y);
 
@@ -1220,11 +1230,11 @@ function draw()
         {
             if (map[j][i] == 0)
             {
-                ctx.fillStyle="rgba(0,0,0,0.2)";
+                ctx.fillStyle="rgba(64,64,64,1)";
             }
             if (map[j][i] == 1)
             {
-                ctx.fillStyle="rgba(0,0,0,0.5)";
+                ctx.fillStyle="rgba(0,0,0,1)";
             }            
             ctx.fillRect(i * settings.gridsize,
                 (j) * (settings.gridsize),
@@ -1258,7 +1268,7 @@ function draw()
                 ctx.restore();
                 break;
             case "rubble":
-                ctx.fillStyle="rgba(0,0,0," + (250 - item.age)*0.5/250 + ")";
+                ctx.fillStyle="rgba(128,128,128," + (250 - item.age)*0.5/250 + ")";
                 ctx.save();
                 ctx.translate(item.x, item.y);
                 ctx.beginPath();
@@ -1276,7 +1286,7 @@ function draw()
                 ctx.restore();
                 break; 
             case "grenade":
-                ctx.fillStyle = ((item.timer % 50) < 25) ? "#aa6644" : "#444444";
+                ctx.fillStyle = ((item.timer % 50) < 25) ? "#ff6644" : "#ffff44";
                 ctx.save();
                 ctx.translate(item.x, item.y);
                 ctx.beginPath();
@@ -1285,7 +1295,7 @@ function draw()
                 ctx.restore();
                 break; 
             case "blood":
-                ctx.fillStyle="rgba(200,0,0,0.5)";
+                ctx.fillStyle="rgba(150,0,0,0.5)";
                 ctx.save();
                 ctx.translate(item.x, item.y);
                 ctx.beginPath();
@@ -1312,7 +1322,7 @@ function draw()
                 }
                 else
                 {
-                    ctx.fillStyle="rgba(0,0,128," + (1 - fraction)/10 + ")";
+                    ctx.fillStyle="rgba(255,255,255," + (1 - fraction)/10 + ")";
                 }
                 
                 ctx.save();
@@ -1333,7 +1343,7 @@ function draw()
                 ctx.fillRect(-25, -50, 50 * Math.max(item.health,0)/100, 10);
                 ctx.rotate(item.angle);
                 ctx.lineWidth=5;
-                ctx.strokeStyle="rgba(0,0,255,0.4)";
+                ctx.strokeStyle="hsla(230,90%,60%,0.75)";
                 ctx.beginPath();
                 ctx.arc(0, 0, 35, 0, (settings.maxDraw - Math.min(settings.maxDraw, drawTime) / settings.maxDraw) * Math.PI * 2, true);
                 ctx.stroke();
@@ -1362,16 +1372,25 @@ function draw()
 
                 // view angle
                 if (!item.dead) {
-                    ctx.fillStyle=item.alert ? "rgba(255,128,0,0.25)" : "rgba(128,192,192,0.3)";
-                    if (item.searching) {ctx.fillStyle = "rgba(255,255,0,.25)"};
+
+                    // Pick a hue
+                    var colour = item.alert ? 0 : 195;
+                    if (item.searching) { colour = 49; }
+
+                    // Make a radial gradient
+                    var grd=ctx.createRadialGradient(0,0,0,0,0,250);
+                    grd.addColorStop(0,"hsla(" + colour + ", 75%, 75%, 1)");
+                    grd.addColorStop(1,"hsla(" + colour + ", 75%, 75%, 0)");
+
+                    ctx.fillStyle=grd;
                     ctx.beginPath();
                     ctx.moveTo(0, 0);
                     ctx.arc(0, 0, 250, -Math.PI/2 - 0.5, -Math.PI/2 + 0.5);
                     ctx.fill();
                 }
 
-                ctx.fillStyle="rgba(0,0,0,1)";
-                if (item.dead) { ctx.fillStyle = "rgba(128,128,128,1)"};
+                ctx.fillStyle="rgba(92,92,255,1)";
+                if (item.dead) { ctx.fillStyle = "rgba(0,0,0,.75)"};
                 drawTriangle();
                 ctx.restore();
                 break; 
@@ -1393,6 +1412,13 @@ function draw()
                 break; 
         }
     });
+
+    ctx.restore();
+
+    // Draw OSD
+    ctx.fillStyle = "rgba(255,255,255,0.3)";
+    ctx.font="100px Arial";
+    ctx.fillText(enemies.filter(function (i) { return !i.dead;}).length, 20, 100);
 }
 
 function drawTriangle()
